@@ -27,10 +27,7 @@ namespace GZipTest.Tests
         //[InlineData(10, 1, 3000)] // НЕСКОЛЬКО потоков сделают ОГРОМНОЕ количество работы
         public void TestBlockingCollection(int threadCount, int blockSizeInMb, int sourceFileSizeInMb)
         {
-            Func<ITaskQueue<DataPortion>> compressTaskQueue = () => new TaskQueue<DataPortion>(threadCount);
-            Func<ITaskQueue<byte[]>> writeTaskQueue = () => new TaskQueue<byte[]>(threadCount);
-
-            InternalTest(threadCount, blockSizeInMb, sourceFileSizeInMb, compressTaskQueue, writeTaskQueue);
+            InternalTest(threadCount, blockSizeInMb, sourceFileSizeInMb, TechnologyMode.BlockingCollection);
         }
 
         [Theory]
@@ -44,10 +41,7 @@ namespace GZipTest.Tests
         //[InlineData(10, 1, 3000)] // НЕСКОЛЬКО потоков сделают ОГРОМНОЕ количество работы
         public void TestMonitor(int threadCount, int blockSizeInMb, int sourceFileSizeInMb)
         {
-            Func<ITaskQueue<DataPortion>> compressTaskQueue = () => new TaskQueueMonitor<DataPortion>(threadCount);
-            Func<ITaskQueue<byte[]>> writeTaskQueue = () => new TaskQueueMonitor<byte[]>(threadCount);
-
-            InternalTest(threadCount, blockSizeInMb, sourceFileSizeInMb, compressTaskQueue, writeTaskQueue);
+            InternalTest(threadCount, blockSizeInMb, sourceFileSizeInMb, TechnologyMode.Monitor);
         }
 
         [Theory]
@@ -61,14 +55,10 @@ namespace GZipTest.Tests
         //[InlineData(10, 1, 3000)] // НЕСКОЛЬКО потоков сделают ОГРОМНОЕ количество работы
         public void TestSemaphore(int threadCount, int blockSizeInMb, int sourceFileSizeInMb)
         {
-            Func<ITaskQueue<DataPortion>> compressTaskQueue = () => new TaskQueueSemaphore<DataPortion>(threadCount);
-            Func<ITaskQueue<byte[]>> writeTaskQueue = () => new TaskQueueSemaphore<byte[]>(threadCount);
-
-            InternalTest(threadCount, blockSizeInMb, sourceFileSizeInMb, compressTaskQueue, writeTaskQueue);
+            InternalTest(threadCount, blockSizeInMb, sourceFileSizeInMb, TechnologyMode.Semaphore);
         }
 
-        private void InternalTest(int threadCount, int blockSizeInMb, int sourceFileSizeInMb,
-            Func<ITaskQueue<DataPortion>> compressTaskQueue, Func<ITaskQueue<byte[]>> writeTaskQueue)
+        private void InternalTest(int threadCount, int blockSizeInMb, int sourceFileSizeInMb, TechnologyMode technology)
         {
             var uniqueFilePart = $"{threadCount}${blockSizeInMb}${sourceFileSizeInMb}";
 
@@ -82,7 +72,7 @@ namespace GZipTest.Tests
                 var watch = Stopwatch.StartNew();
 
                 // Архивируем
-                Compress(sourceFilename, compressedFilename, threadCount, blockSizeInMb, compressTaskQueue, writeTaskQueue);
+                Compress(sourceFilename, compressedFilename, threadCount, blockSizeInMb, technology);
 
                 watch.Stop();
                 _testOutputHelper.WriteLine($"Архив: {watch.ElapsedMilliseconds} ms");
@@ -90,7 +80,7 @@ namespace GZipTest.Tests
                 watch.Restart();
 
                 // Разархивируем
-                Decompress(compressedFilename, decompressedFilename, threadCount, blockSizeInMb, compressTaskQueue, writeTaskQueue);
+                Decompress(compressedFilename, decompressedFilename, threadCount, blockSizeInMb, technology);
 
                 watch.Stop();
                 _testOutputHelper.WriteLine($"Разар: {watch.ElapsedMilliseconds} ms");
@@ -103,48 +93,74 @@ namespace GZipTest.Tests
             }
         }
 
+        private static ITaskQueue<byte[]> GetWriteTaskQueue(TechnologyMode technology, int threadCount)
+        {
+            switch (technology)
+            {
+                case TechnologyMode.BlockingCollection:
+                    return new TaskQueue<byte[]>(threadCount);
+
+                case TechnologyMode.Monitor:
+                    return new TaskQueueMonitor<byte[]>(threadCount);
+
+                case TechnologyMode.Semaphore:
+                    return new TaskQueueSemaphore<byte[]>(threadCount);
+
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(technology), technology, null);
+            }
+        }
+
+        private static ITaskQueue<DataPortion> GetCompressingTaskQueue(TechnologyMode technology, int threadCount)
+        {
+            switch (technology)
+            {
+                case TechnologyMode.BlockingCollection:
+                    return new TaskQueue<DataPortion>(threadCount);
+
+                case TechnologyMode.Monitor:
+                    return new TaskQueueMonitor<DataPortion>(threadCount);
+
+                case TechnologyMode.Semaphore:
+                    return new TaskQueueSemaphore<DataPortion>(threadCount);
+
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(technology), technology, null);
+            }
+        }
+
         private static void GenerateSourceFile(string filename, int sizeInMb)
         {
             var fileGenerator = new RandomFileContentGenerator();
             fileGenerator.Build(filename, sizeInMb);
         }
 
-        private static void Compress(string sourceFilename, string compressedFilename, int threadCount, int blockSizeInMb,
-            Func<ITaskQueue<DataPortion>> compressingTaskQueueFunc, Func<ITaskQueue<byte[]>> writeTaskQueueFunc)
+        private static void Compress(string sourceFilename, string compressedFilename,
+            int threadCount, int blockSizeInMb, TechnologyMode technology)
         {
-            var blockSize = blockSizeInMb * 1024 * 1024 - 10;
-
-            var compressingTaskQueue = compressingTaskQueueFunc.Invoke();
-            var writeTaskQueue = writeTaskQueueFunc.Invoke();
-            try
+            using (var compressingTaskQueue = GetCompressingTaskQueue(technology, threadCount))
+            using (var writeTaskQueue = GetWriteTaskQueue(technology, threadCount))
             {
+                var blockSize = blockSizeInMb * 1024 * 1024 - 10;
                 var coordinator = new Coordinator(threadCount, compressingTaskQueue, writeTaskQueue)
                 {
                     BlockSize = blockSize
                 };
-                {
-                    var settingsProvider = new StubSettingsProvider(
-                        new Settings(sourceFilename, compressedFilename, CompressionMode.Compress));
 
-                    coordinator.Run(settingsProvider.GetSettings());
-                }
-            }
-            finally
-            {
-                (compressingTaskQueue as IDisposable)?.Dispose();
-                (writeTaskQueue as IDisposable)?.Dispose();
+                var settingsProvider = new StubSettingsProvider(
+                    new Settings(sourceFilename, compressedFilename, CompressionMode.Compress));
+
+                coordinator.Run(settingsProvider.GetSettings());
             }
         }
 
-        private static void Decompress(string compressedFilename, string decompressedFilename, int threadCount, int blockSizeInMb,
-                    Func<ITaskQueue<DataPortion>> compressingTaskQueueFunc, Func<ITaskQueue<byte[]>> writeTaskQueueFunc)
+        private static void Decompress(string compressedFilename, string decompressedFilename,
+            int threadCount, int blockSizeInMb, TechnologyMode technology)
         {
-            var blockSize = blockSizeInMb / 1024 - 10;
-
-            var compressingTaskQueue = compressingTaskQueueFunc.Invoke();
-            var writeTaskQueue = writeTaskQueueFunc.Invoke();
-            try
+            using (var compressingTaskQueue = GetCompressingTaskQueue(technology, threadCount))
+            using (var writeTaskQueue = GetWriteTaskQueue(technology, threadCount))
             {
+                var blockSize = blockSizeInMb / 1024 - 10;
                 var coordinator = new Coordinator(threadCount, compressingTaskQueue, writeTaskQueue)
                 {
                     BlockSize = blockSize
@@ -154,11 +170,6 @@ namespace GZipTest.Tests
                     new Settings(compressedFilename, decompressedFilename, CompressionMode.Decompress));
 
                 coordinator.Run(settingsProvider.GetSettings());
-            }
-            finally
-            {
-                (compressingTaskQueue as IDisposable)?.Dispose();
-                (writeTaskQueue as IDisposable)?.Dispose();
             }
         }
 

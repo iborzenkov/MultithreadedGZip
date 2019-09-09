@@ -52,6 +52,7 @@
   <ItemGroup>
     <Compile Include="Configuration\Settings.cs" />
     <Compile Include="BlockSizeDefinders\CompressedBlockSizeDefinder.cs" />
+    <Compile Include="Configuration\TechnologyMode.cs" />
     <Compile Include="Consumers\BaseCompressConsumer.cs" />
     <Compile Include="Consumers\BaseConsumer.cs" />
     <Compile Include="Consumers\DecompressConsumer.cs" />

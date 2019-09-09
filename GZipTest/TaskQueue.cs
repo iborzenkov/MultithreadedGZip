@@ -10,7 +10,7 @@ namespace GZipTest
     /// <remarks>
     /// Является наблюдателем за своими поставщиками данных (consummer'ами).
     /// </remarks>
-    internal class TaskQueue<T> : ITaskQueue<T>, IDisposable
+    internal class TaskQueue<T> : ITaskQueue<T>
     {
         public TaskQueue(int capacity)
         {

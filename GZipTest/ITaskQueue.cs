@@ -1,11 +1,12 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 namespace GZipTest
 {
     /// <summary>
     /// Очередь данных на обработку.
     /// </summary>
-    public interface ITaskQueue<T>
+    public interface ITaskQueue<T> : IDisposable
     {
         /// <summary>
         /// Добавление данных в очередь.

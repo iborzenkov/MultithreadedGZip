@@ -19,14 +19,15 @@ namespace GZipTest.Configuration
             if (_args == null)
                 throw new ArgumentException("Параметры не определены");
 
-            if (_args.Length != 3)
-                throw new ArgumentException("Количество параметров должно быть 3");
+            if (_args.Length < 3 || _args.Length > 4)
+                throw new ArgumentException("Количество параметров должно быть 3 или 4");
 
             var mode = GetMode(_args[0]);
             var sourceFilename = GetSourceFilename(_args[1]);
             var destinationFilename = GetDestinationFilename(_args[2]);
+            var technology = _args.Length == 4 ? GetTechnology(_args[3]) : TechnologyMode.BlockingCollection;
 
-            return new Settings(sourceFilename, destinationFilename, mode);
+            return new Settings(sourceFilename, destinationFilename, mode, technology);
         }
 
         private static CompressionMode GetMode(string argument)
@@ -45,6 +46,28 @@ namespace GZipTest.Configuration
 
                 default:
                     throw new ArgumentException("Режим может быть либо \"compress\", либо \"decompress\"");
+            }
+        }
+
+        private static TechnologyMode GetTechnology(string argument)
+        {
+            var modeStr = argument;
+            if (string.IsNullOrEmpty(modeStr))
+                throw new ArgumentException("Не указана технология решения задачи");
+
+            switch (modeStr)
+            {
+                case "blocking_collection":
+                    return TechnologyMode.BlockingCollection;
+
+                case "monitor":
+                    return TechnologyMode.Monitor;
+
+                case "semaphore":
+                    return TechnologyMode.Semaphore;
+
+                default:
+                    throw new ArgumentException("Режим может быть либо \"blocking_collection\", либо \"monitor\", либо \"semaphore\"");
             }
         }
 

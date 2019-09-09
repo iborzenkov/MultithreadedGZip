@@ -8,10 +8,16 @@ namespace GZipTest.Configuration
     public class Settings
     {
         public Settings(string sourceFilename, string destinationFilename, CompressionMode mode)
+            : this(sourceFilename, destinationFilename, mode, TechnologyMode.BlockingCollection)
+        {
+        }
+
+        public Settings(string sourceFilename, string destinationFilename, CompressionMode mode, TechnologyMode technology)
         {
             SourceFilename = sourceFilename;
             DestinationFilename = destinationFilename;
             Mode = mode;
+            Technology = technology;
         }
 
         /// <summary>
@@ -28,5 +34,10 @@ namespace GZipTest.Configuration
         /// Режим работы (компрессия/декомпресиия).
         /// </summary>
         public CompressionMode Mode { get; }
+
+        /// <summary>
+        /// Режим работы (компрессия/декомпресиия).
+        /// </summary>
+        public TechnologyMode Technology { get; }
     }
 }

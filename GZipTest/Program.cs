@@ -16,35 +16,84 @@ namespace GZipTest
 
             var threadCount = Math.Max(1, Environment.ProcessorCount);
 
-            using (var compressingTaskQueue = new TaskQueue<DataPortion>(threadCount))
-            using (var writeTaskQueue = new TaskQueue<byte[]>(threadCount))
+#if DEBUG
+            var technology = TechnologyMode.BlockingCollection;
+            
+            // Компрессия
+            using (var compressingTaskQueue = GetCompressingTaskQueue(technology, threadCount))
+            using (var writeTaskQueue = GetWriteTaskQueue(technology, threadCount))
             {
                 var coordinator = new Coordinator(threadCount, compressingTaskQueue, writeTaskQueue);
+                var watch = Stopwatch.StartNew();
 
-#if DEBUG
-                // Для отладки
                 var compressedSettingsProvider = new StubSettingsProvider(
                     new Settings("data\\source.xml", "data\\compressed.gz", CompressionMode.Compress));
+                coordinator.Run(compressedSettingsProvider.GetSettings());
+                Console.WriteLine($"Время выполнения упаковки: {watch.ElapsedMilliseconds} мс");
+            }
+
+            // Декомпрессия
+            using (var compressingTaskQueue = GetCompressingTaskQueue(technology, threadCount))
+            using (var writeTaskQueue = GetWriteTaskQueue(technology, threadCount))
+            {
+                var coordinator = new Coordinator(threadCount, compressingTaskQueue, writeTaskQueue);
+                var watch = Stopwatch.StartNew();
 
                 var decompressedSettingsProvider = new StubSettingsProvider(
                     new Settings("data\\compressed.gz", "data\\decompressed.xml", CompressionMode.Decompress));
-
-                var watch = Stopwatch.StartNew();
-
-                coordinator.Run(compressedSettingsProvider.GetSettings());
-                Console.WriteLine($"Время выполнения упаковки: {watch.ElapsedMilliseconds} мс");
-
-                watch.Restart();
                 coordinator.Run(decompressedSettingsProvider.GetSettings());
                 Console.WriteLine($"Время выполнения распаковки: {watch.ElapsedMilliseconds} мс");
+            }
 #else
             var settingsProvider = new SettingsProvider(args);
-            coordinator.Run(settingsProvider.GetSettings());
+            var settings = settingsProvider.GetSettings();
 
-#endif
+            var technology = settings.Technology;
+            using (var compressingTaskQueue = GetCompressingTaskQueue(technology, threadCount))
+            using (var writeTaskQueue = GetWriteTaskQueue(technology, threadCount))
+            {
+                var coordinator = new Coordinator(threadCount, compressingTaskQueue, writeTaskQueue);
+                coordinator.Run(settings);
             }
+#endif
 
             Environment.Exit(0);
+        }
+
+        private static ITaskQueue<byte[]> GetWriteTaskQueue(TechnologyMode technology, int threadCount)
+        {
+            switch (technology)
+            {
+                case TechnologyMode.BlockingCollection:
+                    return new TaskQueue<byte[]>(threadCount);
+
+                case TechnologyMode.Monitor:
+                    return new TaskQueueMonitor<byte[]>(threadCount);
+
+                case TechnologyMode.Semaphore:
+                    return new TaskQueueSemaphore<byte[]>(threadCount);
+
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(technology), technology, null);
+            }
+        }
+
+        private static ITaskQueue<DataPortion> GetCompressingTaskQueue(TechnologyMode technology, int threadCount)
+        {
+            switch (technology)
+            {
+                case TechnologyMode.BlockingCollection:
+                    return new TaskQueue<DataPortion>(threadCount);
+
+                case TechnologyMode.Monitor:
+                    return new TaskQueueMonitor<DataPortion>(threadCount);
+
+                case TechnologyMode.Semaphore:
+                    return new TaskQueueSemaphore<DataPortion>(threadCount);
+
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(technology), technology, null);
+            }
         }
 
         /// <summary>

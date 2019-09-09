@@ -28,7 +28,7 @@ namespace GZipTest.Tests
         [Fact]
         public void TestManyParametersCount()
         {
-            var args = new string[4];
+            var args = new string[5];
             var provider = new SettingsProvider(args);
             Assert.Throws<ArgumentException>(() => provider.GetSettings());
         }
@@ -40,6 +40,18 @@ namespace GZipTest.Tests
             args[0] = "qwe";
             args[1] = GetCorrectFilename;
             args[2] = GetCorrectFilename;
+            var provider = new SettingsProvider(args);
+            Assert.Throws<ArgumentException>(() => provider.GetSettings());
+        }
+
+        [Fact]
+        public void TestIncorrectTechnology()
+        {
+            var args = new string[4];
+            args[0] = "qwe";
+            args[1] = GetCorrectFilename;
+            args[2] = GetCorrectFilename;
+            args[3] = "unknown technology";
             var provider = new SettingsProvider(args);
             Assert.Throws<ArgumentException>(() => provider.GetSettings());
         }
@@ -147,6 +159,27 @@ namespace GZipTest.Tests
         }
 
         [Fact]
+        public void TestCorrectCompressWithTechnology()
+        {
+            var sourceFilename = GetCorrectFilename;
+            var destinationFilename = GetCorrectFilename;
+
+            var args = new string[4];
+            args[0] = "compress";
+            args[1] = sourceFilename;
+            args[2] = destinationFilename;
+            args[3] = "monitor";
+            var provider = new SettingsProvider(args);
+            var settings = provider.GetSettings();
+
+            Assert.NotNull(settings);
+            Assert.Equal(CompressionMode.Compress, settings.Mode);
+            Assert.Equal(sourceFilename, settings.SourceFilename);
+            Assert.Equal(destinationFilename, settings.DestinationFilename);
+            Assert.Equal(TechnologyMode.Monitor, settings.Technology);
+        }
+
+        [Fact]
         public void TestCorrectDecompress()
         {
             var sourceFilename = GetCorrectFilename;
@@ -163,6 +196,27 @@ namespace GZipTest.Tests
             Assert.Equal(CompressionMode.Decompress, settings.Mode);
             Assert.Equal(sourceFilename, settings.SourceFilename);
             Assert.Equal(destinationFilename, settings.DestinationFilename);
+        }
+
+        [Fact]
+        public void TestCorrectDecompressWithTechnology()
+        {
+            var sourceFilename = GetCorrectFilename;
+            var destinationFilename = GetCorrectFilename;
+
+            var args = new string[4];
+            args[0] = "decompress";
+            args[1] = sourceFilename;
+            args[2] = destinationFilename;
+            args[3] = "semaphore";
+            var provider = new SettingsProvider(args);
+            var settings = provider.GetSettings();
+
+            Assert.NotNull(settings);
+            Assert.Equal(CompressionMode.Decompress, settings.Mode);
+            Assert.Equal(sourceFilename, settings.SourceFilename);
+            Assert.Equal(destinationFilename, settings.DestinationFilename);
+            Assert.Equal(TechnologyMode.Semaphore, settings.Technology);
         }
 
         private string GetCorrectFilename => Process.GetCurrentProcess().MainModule.FileName;

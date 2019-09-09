@@ -77,6 +77,11 @@ namespace GZipTest
             }
         }
 
+        public void Dispose()
+        {
+            // пока нечего уничтожать
+        }
+
         private Queue<T> Queue { get; }
         private bool _isCompleted;
         private readonly int _capacity;

@@ -3,4 +3,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'">
     <StartArguments>compress data\source.xml data\compressed.gz</StartArguments>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|AnyCPU'">
+    <StartArguments>compress data\source.xml data\compressed.gz semaphore</StartArguments>
+  </PropertyGroup>
 </Project>

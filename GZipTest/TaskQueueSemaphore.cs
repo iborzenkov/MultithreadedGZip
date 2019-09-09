@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -12,7 +11,7 @@ namespace GZipTest
     /// <remarks>
     /// Является наблюдателем за своими поставщиками данных (consummer'ами).
     /// </remarks>
-    internal class TaskQueueSemaphore<T> : ITaskQueue<T>, IDisposable
+    internal class TaskQueueSemaphore<T> : ITaskQueue<T>
     {
         public TaskQueueSemaphore(int capacity)
         {
