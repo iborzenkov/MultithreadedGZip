@@ -17,7 +17,7 @@ namespace GZipTest
             var threadCount = Math.Max(1, Environment.ProcessorCount);
 
 #if DEBUG
-            var technology = TechnologyMode.BlockingCollection;
+            var technology = TechnologyMode.Semaphore;
             
             // Компрессия
             using (var compressingTaskQueue = GetCompressingTaskQueue(technology, threadCount))

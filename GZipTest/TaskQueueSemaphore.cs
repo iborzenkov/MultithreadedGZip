@@ -26,16 +26,20 @@ namespace GZipTest
             if (_isCompleted)
                 throw new InvalidOperationException("Добавление в очередь ПОСЛЕ завершения");
 
-            // Не впускаем внуть критической секции другой поток, который будет добавлять данные
+            // Не впускаем внутрь критической секции другой поток, который будет добавлять данные
             lock (_lockerAdd)
             {
                 Queue.Enqueue(data);
                 _semaphore.Release();
 
-                // Останавливаем добавление заданий в очередь, если превышен размер очереди.
-                if (Queue.Count >= _capacity)
+                // Эта критическая секция добавлена, чтобы процедура проверки и сброса события были не разделимы методов извлечения из очереди.
+                lock (_lockerGet)
                 {
-                    _eventTaskIsTaken.Reset();
+                    // Останавливаем добавление заданий в очередь, если превышен размер очереди.
+                    if (Queue.Count >= _capacity)
+                    {
+                        _eventTaskIsTaken.Reset();
+                    }
                 }
 
                 if (!_eventTaskIsTaken.WaitOne(_timeout))
