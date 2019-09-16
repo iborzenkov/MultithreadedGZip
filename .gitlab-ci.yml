@@ -26,9 +26,11 @@ build:
 test:
   stage: test
   script:
+  - echo "Preparing tests..."
+  - cd "$env:TEST_PROJECT_NAME"\bin\Release
+  - echo "Working folder is "
+  - Get-Location
   - echo "Starting tests..."
-  - cd "$env:TEST_PROJECT_NAME"
-  - cd bin\Release
   - '& "$env:MSTEST_PATH" /testcontainer:"$env:TEST_PROJECT_NAME".dll /resultsfile:"$env:TRX_FILENAME"'
   - '& "$env:FAULTED_TESTS_PUBLISHER" "$env:TRX_PATH"\"$env:TRX_FILENAME"'
   dependencies:
